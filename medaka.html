@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>メダカの誕生と成長クイズ</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #5ab1bb; /* メダカの色 */
+            --secondary-color: #a4dded; /* 水の色 */
+            --bg-color: #e0f7fa; /* 背景 */
+            --text-color: #004d40; /* 文字色 */
+            --highlight-color: #ffb74d; /* ハイライト */
+            --correct-color: #66bb6a; /* 正解色 */
+            --wrong-color: #ef5350; /* 不正解色 */
+        }
+
+        body {
+            font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        #app-container {
+            background: white;
+            width: 100%;
+            max-width: 480px;
+            padding: 25px;
+            border-radius: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            text-align: center;
+            border: 6px solid var(--primary-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 10px;
+        }
+
+        .start-button, .choice-button, .next-button, .restart-button {
+            display: block;
+            width: 90%;
+            margin: 15px auto;
+            padding: 18px 20px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+            position: relative;
+            transform: translateY(0);
+        }
+
+        .start-button {
+            background-color: var(--primary-color);
+            color: white;
+            box-shadow: 0 5px 0 #4a8f96;
+        }
+        .start-button:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #4a8f96;
+        }
+
+        .choice-button {
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            box-shadow: 0 4px 0 #8cc7d9;
+        }
+        .choice-button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #8cc7d9;
+        }
+        .choice-button.selected {
+            background-color: var(--highlight-color);
+            color: white;
+            box-shadow: 0 4px 0 #e6a244;
+        }
+        .choice-button.correct {
+            background-color: var(--correct-color);
+            color: white;
+            box-shadow: 0 4px 0 #52a656;
+        }
+        .choice-button.wrong {
+            background-color: var(--wrong-color);
+            color: white;
+            box-shadow: 0 4px 0 #d44845;
+        }
+
+        .next-button, .restart-button {
+            background-color: var(--primary-color);
+            color: white;
+            box-shadow: 0 5px 0 #4a8f96;
+        }
+        .next-button:active, .restart-button:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #4a8f96;
+        }
+
+        .question-area {
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        .progress-bar-container {
+            width: 90%;
+            height: 12px;
+            background-color: #e0f2f7;
+            border-radius: 6px;
+            margin: 0 auto 20px auto;
+            overflow: hidden;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: var(--highlight-color);
+            border-radius: 6px;
+            transition: width 0.4s ease-out;
+        }
+
+        #feedback-area {
+            min-height: 60px;
+            margin-top: 20px;
+            font-size: 1.1rem;
+            line-height: 1.5;
+        }
+        #feedback-area p { margin: 5px 0; }
+        .feedback-correct { color: var(--correct-color); font-weight: bold; }
+        .feedback-wrong { color: var(--wrong-color); font-weight: bold; }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <div id="start-screen">
+        <h1>🐠メダカの誕生と成長クイズ</h1>
+        <p>小学5年生の理科を楽しく学ぼう！</p>
+        <button class="start-button" onclick="startQuiz()">クイズスタート！</button>
+    </div>
+
+    <div id="quiz-screen" class="hidden">
+        <p id="question-number">第 1 問 / 10</p>
+        <div class="progress-bar-container">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <div class="question-area" id="question-text"></div>
+        <div id="choices-container"></div>
+        <div id="feedback-area"></div>
+        <button class="next-button hidden" onclick="nextQuestion()">次の問題へ</button>
+    </div>
+
+    <div id="result-screen" class="hidden">
+        <h1>✨ 結果発表！ ✨</h1>
+        <p id="final-score" style="font-size:1.5rem; font-weight:bold;"></p>
+        <p id="result-message" style="margin-top:20px;"></p>
+        <button class="restart-button" onclick="restartQuiz()">もう一度チャレンジ！</button>
+    </div>
+</div>
+
+<script>
+    const quizData = [
+        {
+            question: "メダカのオスとメスを見分けるとき、しりびれが平行四辺形に近く、切り込みがあるのはどちらですか？",
+            choices: ["オス", "メス"],
+            correct: 0,
+            rationale: "オスのしりびれはメスよりも大きく、後ろの方が長くなっていて切り込みがあるのが特徴です。メスを抱きかかえるために発達しています。",
+            hint: "しりびれが大きく、ギザギザしている方を思い出そう！"
+        },
+        {
+            question: "メスの背びれには、どのような特徴がありますか？",
+            choices: ["大きな切り込みがある", "切り込みがない", "トゲのような突起がある"],
+            correct: 1,
+            rationale: "メスの背びれはオスと比べて小さく、切り込みがないのが特徴です。",
+            hint: "オスの背びれにある特徴的な形と比べてみよう！"
+        },
+        {
+            question: "メダカの卵が生まれてから数日後、卵の中で最初にはっきりと見えるようになるのは何ですか？",
+            choices: ["ひれ", "心臓", "目", "うろこ"],
+            correct: 2,
+            rationale: "卵の中で最初に黒い点としてはっきり見えるようになるのは「目」です。これは生物の発生の初期段階で重要な器官だからです。",
+            hint: "顔の一部にある、黒くて丸い部分が最初に見えてきます。"
+        },
+        {
+            question: "メダカの卵の中で、血液が流れている様子を観察できるのはどこですか？",
+            choices: ["卵の殻の表面", "目の中", "心臓や血管", "油球の中"],
+            correct: 2,
+            rationale: "顕微鏡などで観察すると、ドクンドクンと動く心臓や、そこから全身に流れる血液（赤血球）を確認できます。",
+            hint: "体の中で、全身に何かを送り出している場所を探してみよう！"
+        },
+        {
+            question: "メダカがふ化した直後、お腹についているふくらみの中には何が入っていますか？",
+            choices: ["水", "空気", "養分（栄養）", "消化しきれなかった食べ物"],
+            correct: 2,
+            rationale: "ふ化したばかりの稚魚は、お腹の袋（さいのう）にある養分を使って、自分でエサを食べ始めるまでの数日間を過ごします。",
+            hint: "自分でエサを食べるようになるまでの「お弁当」のような役割だよ！"
+        },
+        {
+            question: "メダカが卵からかえる（ふ化する）ために必要なものは何ですか？",
+            choices: ["適当な温度と酸素", "エサ", "土", "暗い場所"],
+            correct: 0,
+            rationale: "卵が正常に育つには、約25度前後の適当な水温と、水中に溶けている十分な酸素が必要です。",
+            hint: "生き物が育つために、お水の中で何が必要か考えてみよう！"
+        },
+        {
+            question: "メダカを飼育する際、水槽の中に水草（ホテイアオイなど）を入れる主な理由は何ですか？",
+            choices: ["メダカが隠れて寝るため", "卵を産み付ける場所にするため", "水をろ過するため", "水槽をきれいにするため"],
+            correct: 1,
+            rationale: "メダカは水草の茎や根に卵を産み付ける習性があるため、産卵場所（産卵床）として水草が必要です。",
+            hint: "メスが卵をお腹に抱えた後、どこに付けるかを考えてみよう！"
+        },
+        {
+            question: "顕微鏡を使って卵を観察するとき、ピントを合わせるために動かす部分はどこですか？",
+            choices: ["反射鏡", "調節ねじ", "接眼レンズ", "ステージ"],
+            correct: 1,
+            rationale: "顕微鏡の「調節ねじ（粗動ねじ・微動ねじ）」を回して、対物レンズと試料の距離を変えることでピントを合わせます。",
+            hint: "横についている大きなねじの名前を思い出してみよう！"
+        },
+        {
+            question: "メダカの稚魚が大きくなるために食べる「微生物」の例として正しいものはどれですか？",
+            choices: ["アブラムシ", "ミジンコ", "メダカの親", "カブトムシの幼虫"],
+            correct: 1,
+            rationale: "ミジンコやゾウリムシ、ワムシなどの水中の小さな微生物は、メダカの稚魚のよいエサになります。",
+            hint: "水中に住んでいる、肉眼でギリギリ見えるかどうかの小さな生き物だよ！"
+        },
+        {
+            question: "メダカが一度に産む卵の数は、およそどれくらいですか？",
+            choices: ["1個だけ", "10個から30個くらい", "1000個以上", "産まない（赤ちゃんを産む）"],
+            correct: 1,
+            rationale: "メダカは1回の産卵で、およそ10〜30個程度の卵をまとめて産むことが多いです。これは生存率を高めるためです。",
+            hint: "メスがお腹につけて泳いでいる卵の塊をイメージしてみよう！"
+        }
+    ];
+
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let selectedChoice = null;
+
+    function startQuiz() {
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('quiz-screen').classList.remove('hidden');
+        currentQuestionIndex = 0;
+        score = 0;
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        if (currentQuestionIndex >= quizData.length) {
+            showResult();
+            return;
+        }
+
+        const question = quizData[currentQuestionIndex];
+        document.getElementById('question-number').innerText = `第 ${currentQuestionIndex + 1} 問 / ${quizData.length}`;
+        document.getElementById('question-text').innerText = question.question;
+        document.getElementById('feedback-area').innerHTML = '';
+        document.getElementById('next-button').classList.add('hidden');
+
+        const choicesContainer = document.getElementById('choices-container');
+        choicesContainer.innerHTML = '';
+        selectedChoice = null;
+
+        question.choices.forEach((choice, index) => {
+            const button = document.createElement('button');
+            button.classList.add('choice-button');
+            button.innerText = choice;
+            button.onclick = () => selectChoice(index);
+            choicesContainer.appendChild(button);
+        });
+
+        updateProgressBar();
+    }
+
+    function selectChoice(index) {
+        if (selectedChoice !== null) return; // すでに選択済みなら何もしない
+
+        selectedChoice = index;
+        const choices = document.querySelectorAll('.choice-button');
+        choices.forEach((button, i) => {
+            if (i === index) {
+                button.classList.add('selected');
+            }
+            button.disabled = true; // 選択後はボタンを無効化
+        });
+
+        const question = quizData[currentQuestionIndex];
+        const feedbackArea = document.getElementById('feedback-area');
+        feedbackArea.innerHTML = ''; // クリア
+
+        if (index === question.correct) {
+            score++;
+            choices[index].classList.remove('selected');
+            choices[index].classList.add('correct');
+            feedbackArea.innerHTML = `<p class="feedback-correct">⭕ 正解！</p><p>${question.rationale}</p>`;
+            confetti({
+                particleCount: 50,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+        } else {
+            choices[index].classList.remove('selected');
+            choices[index].classList.add('wrong');
+            choices[question.correct].classList.add('correct'); // 正解の選択肢も表示
+            feedbackArea.innerHTML = `<p class="feedback-wrong">❌ 残念！</p><p>${question.rationale}</p><p style="color:#666; font-size:0.9rem;">ヒント: ${question.hint}</p>`;
+        }
+        document.getElementById('next-button').classList.remove('hidden');
+    }
+
+    function nextQuestion() {
+        currentQuestionIndex++;
+        loadQuestion();
+    }
+
+    function updateProgressBar() {
+        const progressBar = document.getElementById('progress-bar');
+        const progress = (currentQuestionIndex / quizData.length) * 100;
+        progressBar.style.width = `${progress}%`;
+    }
+
+    function showResult() {
+        document.getElementById('quiz-screen').classList.add('hidden');
+        document.getElementById('result-screen').classList.remove('hidden');
+        document.getElementById('final-score').innerText = `${quizData.length}問中、${score}問正解！`;
+
+        const resultMessage = document.getElementById('result-message');
+        if (score === quizData.length) {
+            resultMessage.innerHTML = '🐠✨素晴らしい！メダカマスターだね！✨🐠<br>この調子でどんどん学んでいこう！';
+            confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
+        } else if (score >= quizData.length / 2) {
+            resultMessage.innerHTML = 'あと少しでパーフェクトだね！<br>もう一度挑戦して、苦手な問題を克服しよう！';
+        } else {
+            resultMessage.innerHTML = 'もう一度しっかり復習してみよう！<br>きっと次こそはもっとできるよ！';
+        }
+    }
+
+    function restartQuiz() {
+        document.getElementById('result-screen').classList.add('hidden');
+        document.getElementById('start-screen').classList.remove('hidden');
+        currentQuestionIndex = 0;
+        score = 0;
+        selectedChoice = null;
+    }
+
+    // 初期状態の進捗バーをリセット
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('progress-bar').style.width = '0%';
+        document.getElementById('next-button').id = 'next-button'; // ID設定（CSSで参照しているため）
+    });
+
+</script>
+
+</body>
+</html>
