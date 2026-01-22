@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>さんすうクエスト！〜真・伝説の称号〜</title>
+    <style>
+        :root {
+            --primary: #ffcc00; --secondary: #4cd137; --accent: #00a8ff;
+            --bg: #f0f4f8; --danger: #ff4757;
+        }
+        body { font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif; background-color: var(--bg); margin: 0; padding: 10px; }
+        #quiz-container { background: white; width: 100%; max-width: 600px; margin: 20px auto; padding: 25px; border-radius: 30px; border: 6px solid var(--accent); box-shadow: 0 10px 0 var(--accent); position: relative; }
+        
+        .screen { display: none; text-align: center; animation: fadeIn 0.5s ease; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* --- 修正：祝福メッセージのスタイル --- */
+        #celebration { 
+            position: absolute; 
+            top: 20%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(255, 71, 87, 0.95); color: white; 
+            padding: 15px 40px; border-radius: 50px;
+            font-size: 1.8em; font-weight: bold; white-space: nowrap; 
+            display: none; z-index: 1000; /* 最前面に */
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            pointer-events: none; /* 下のボタン操作を邪魔しない */
+        }
+        .pop-animation { animation: popCenter 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes popCenter { 
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            50% { transform: translate(-50%, -60%) scale(1.1); opacity: 1; }
+            100% { transform: translate(-50%, -60%) scale(1); opacity: 0; }
+        }
+
+        .start-msg { background: #fffdf0; padding: 20px; border-radius: 15px; border: 2px solid var(--primary); margin: 20px 0; line-height: 1.8; text-align: left; }
+        .progress-bar { background: #eee; height: 18px; border-radius: 10px; margin-bottom: 20px; overflow: hidden; border: 2px solid #ddd; }
+        .progress-fill { background: linear-gradient(90deg, var(--secondary), #8cf07a); height: 100%; width: 0%; transition: 0.5s; }
+        .question-card { background: #fffdf0; padding: 25px; border-radius: 20px; border: 3px dashed var(--primary); margin-bottom: 25px; text-align: center; font-weight: bold; font-size: 1.3em; line-height: 1.8; }
+        
+        /* 分数表示 */
+        .frac-container { display: inline-flex; align-items: center; vertical-align: middle; margin: 0 5px; line-height: 1; }
+        .frac { display: inline-block; text-align: center; vertical-align: middle; }
+        .frac span { display: block; padding: 0 4px; }
+        .frac .num { border-bottom: 2px solid #333; padding-bottom: 2px; }
+        .whole { font-size: 1.2em; margin-right: 2px; font-weight: bold; }
+
+        .options { display: grid; grid-template-columns: 1fr; gap: 12px; }
+        button.opt-btn { padding: 18px; font-size: 1.1em; border: 3px solid #e0e0e0; border-radius: 50px; background: white; cursor: pointer; transition: 0.2s; font-weight: bold; box-shadow: 0 5px 0 #ccc; }
+        button.opt-btn:active { transform: translateY(4px); box-shadow: none; }
+        button.opt-btn:hover { border-color: var(--accent); background: #f0faff; }
+
+        .score-box { font-size: 4.5em; color: var(--danger); font-weight: bold; margin: 10px 0; }
+        .badge { display: inline-block; padding: 15px 30px; border-radius: 50px; font-weight: bold; margin-bottom: 20px; border: 4px solid #fff; box-shadow: 0 5px 0 rgba(0,0,0,0.1); font-size: 1.3em; color: white; }
+        table.res-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; border-radius: 15px; overflow: hidden; }
+        .res-table th { background: var(--accent); color: white; padding: 12px; }
+        .res-table td { padding: 12px; border-bottom: 1px solid #eee; }
+        .retry-banner { background: var(--danger); color: white; padding: 15px; border-radius: 15px; margin: 20px 0; font-weight: bold; }
+        .feedback-msg { height: 40px; margin-top: 15px; font-weight: bold; color: var(--danger); font-size: 1.2em; }
+    </style>
+</head>
+<body>
+
+<div id="quiz-container">
+    <div id="celebration"></div>
+
+    <div id="start-screen" class="screen active">
+        <h1 style="color:var(--accent); font-size: 2em; margin-bottom: 10px;">🔱 真・さんすうクエスト</h1>
+        <p style="color:#666; font-weight: bold;">〜失われた数式と伝説の称号〜</p>
+        <div class="start-msg">
+            よくぞ来た、若き賢者よ。<br>
+            この先には、計算の罠、小数の迷宮、そして手強い文章題が待ち受けている。全問正解し、<b>「真・算数ゴッド」</b>の称号を掴み取れ！
+        </div>
+        <button class="opt-btn" style="width:100%; background:var(--secondary); color:white; border-color:#38ac2a; box-shadow:0 5px 0 #38ac2a;" onclick="startGame()">クエスト開始！</button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <h2 style="text-align:center; color:var(--accent); margin-top:0;">🌟 冒険進行中</h2>
+        <div class="progress-bar"><div class="progress-fill" id="fill"></div></div>
+        <div id="q-area" class="question-card"></div>
+        <div id="opt-area" class="options"></div>
+        <div id="hint-box" style="display:none; margin-top:15px; padding:15px; background:#fff3cd; border-radius:10px; font-size:0.95em; border-left: 5px solid var(--primary); text-align: left;"></div>
+    </div>
+
+    <div id="result-screen" class="screen">
+        <h1>🏆 冒険の結末</h1>
+        <div id="score-val" class="score-box">0点</div>
+        <div id="badge-area" class="badge">称号</div>
+        <div id="eval-text" style="margin-bottom:20px; font-weight:bold; color:#555;"></div>
+        <table class="res-table">
+            <thead><tr><th>問</th><th>判定</th><th>正解</th></tr></thead>
+            <tbody id="res-list"></tbody>
+        </table>
+        <div id="retry-info" class="retry-banner" style="display:none;">「試練のリベンジ」3問に挑め！</div>
+        <button class="opt-btn" style="width:100%; margin-top:20px; background:var(--accent); color:white; border-color:#0086cc; box-shadow:0 5px 0 #0086cc;" onclick="startRetry()">次にすすむ</button>
+    </div>
+
+    <div id="retry-screen" class="screen">
+        <h1 style="color:var(--danger);">🔥 試練の刻</h1>
+        <div id="retry-prog-text" style="font-weight:bold; margin-bottom:15px; color:#666;"></div>
+        <div id="retry-q-area" class="question-card"></div>
+        <div id="retry-opt-area" class="options"></div>
+        <div id="retry-feedback" class="feedback-msg"></div>
+    </div>
+</div>
+
+<script>
+let current = 0; let score = 0; let userLogs = []; let wrongIdx = []; let retryStep = 0;
+
+const f = (w, n, d) => `<span class="frac-container">${w > 0 ? `<span class="whole">${w}</span>` : ''}<span class="frac"><span class="num">${n}</span><span class="den">${d}</span></span></span>`;
+
+const congratsMessages = ["完璧だ！", "恐ろしい才能...", "全知全能か！", "これぞゴッド！", "美しき正解！", "鳥肌が立ったぞ！"];
+
+const quizData = [
+    { 
+        q: `${f(2, 3, 4)} ＋ ${f(1, 2, 3)}`, a: f(4, 5, 12), d: [f(3, 5, 7), f(4, 1, 12)], 
+        h: "分母を12にそろえよう！分子が12を超えたら整数に繰り上げるのを忘れずに！", 
+        rq: `${f(1, 4, 5)} ＋ ${f(1, 1, 2)}`, ra: f(3, 3, 10), rd: [f(2, 5, 7), f(3, 1, 10)] 
+    },
+    { 
+        q: `${f(3, 1, 5)} － ${f(1, 2, 3)}`, a: f(1, 8, 15), d: [f(2, 1, 2), f(1, 7, 15)], 
+        h: "分母を15に！分子の引き算ができないときは、整数から1借りてこよう！", 
+        rq: `${f(4, 1, 4)} － ${f(1, 2, 3)}`, ra: f(2, 7, 12), rd: [f(3, 1, 1), f(2, 5, 12)] 
+    },
+    { q: `( □ － 18 ) × 7 ＝ 126`, a: "36", d: ["30", "42"], h: "126÷7 を計算して、その後に18を足そう！", rq: `( □ － 12 ) × 8 ＝ 160`, ra: "32", rd: ["20", "40"] },
+    { q: `0.15 × 2.4 ÷ 0.6`, a: "0.6", d: ["0.06", "6"], h: "前から順番に。小数の位置を間違えないように！", rq: `0.12 × 4.5 ÷ 0.9`, ra: "0.6", rd: ["0.06", "6"] },
+    { q: `150億 の 0.04倍 は？`, a: "6億", d: ["6000万", "60億"], h: "150 × 0.04 を計算して単位をつけよう！", rq: `200億 の 0.005倍 は？`, ra: "1億", rd: ["1000万", "10億"] },
+    { q: `0.001 を 1500個集めた数は？`, a: "1.5", d: ["15", "0.15"], h: "小数点を左に3つ動かしてみよう！", rq: `0.01 を 250個集めた数は？`, ra: "2.5", rd: ["25", "0.25"] },
+    { q: `秒速20m で 3分走ると何km？`, a: "3.6km", d: ["60km", "3600km"], h: "まずは「3分＝180秒」に直して距離を出そう！最後はmをkmに！", rq: `分速80m で 1時間走ると何km？`, ra: "4.8km", rd: ["48km", "800m"] },
+    { 
+        q: `${f(0, 45, 6)} を帯分数にし、さらに約分せよ`, a: f(7, 1, 2), d: [f(7, 3, 6), f(7, 2, 3)], 
+        h: "まずは帯分数に直してから（45÷6）、分数部分を同じ数で割ろう！", 
+        rq: `${f(0, 28, 8)} を帯分数にし約分せよ`, ra: f(3, 1, 2), rd: [f(3, 4, 8), f(3, 2, 4)] 
+    },
+    { q: `1から100までに「7」がつく数字は何個？`, a: "19個", d: ["10個", "20個"], h: "一の位が7の数と、十の位が7の数を数えよう（77に注意）！", rq: `1から50までに「3」がつく数字は何個？`, ra: "15個", rd: ["5個", "14個"] },
+    { q: `池の周り1.2kmを、A君は分速80m、B君は分速70mで同じ場所から反対に歩くと何分後に出会う？`, a: "8分後", d: ["10分後", "15分後"], h: "1.2kmを1200mに直し、二人の速さの「和」で割ろう！", rq: `600mの道をA君分速60m、B君分速40mで向かい合うと何分後？`, ra: "6分後", rd: ["10分後", "5分後"] }
+];
+
+function switchScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+
+function startGame() {
+    switchScreen('game-screen');
+    showQ();
+}
+
+function showCeleb() {
+    const el = document.getElementById("celebration");
+    el.innerText = congratsMessages[Math.floor(Math.random() * congratsMessages.length)];
+    el.style.display = "block";
+    el.classList.remove("pop-animation");
+    void el.offsetWidth; // リフローを発生させてアニメーションをリセット
+    el.classList.add("pop-animation");
+    setTimeout(() => { el.style.display = "none"; }, 800);
+}
+
+function showQ() {
+    const data = quizData[current];
+    document.getElementById("fill").style.width = (current * 10) + "%";
+    document.getElementById("q-area").innerHTML = (current + 1) + ". " + data.q;
+    document.getElementById("hint-box").style.display = "none";
+    const area = document.getElementById("opt-area");
+    area.innerHTML = "";
+    [...data.d, data.a].sort(() => Math.random() - 0.5).forEach(o => {
+        const b = document.createElement("button");
+        b.className = "opt-btn"; b.innerHTML = o;
+        b.onclick = () => {
+            if(o === data.a) {
+                showCeleb();
+                if(!userLogs[current]) { score += 10; userLogs[current] = { s: "〇", v: o }; }
+                setTimeout(() => { current++; if(current < 10) showQ(); else end(); }, 800);
+            } else {
+                userLogs[current] = { s: "×", v: o };
+                if(!wrongIdx.includes(current)) wrongIdx.push(current);
+                document.getElementById("hint-box").innerHTML = "💡 ヒント: " + data.h;
+                document.getElementById("hint-box").style.display = "block";
+            }
+        };
+        area.appendChild(b);
+    });
+}
+
+function end() {
+    switchScreen('result-screen');
+    document.getElementById("score-val").innerText = score + "点";
+    const b = document.getElementById("badge-area");
+    const e = document.getElementById("eval-text");
+    
+    if(score === 100) { b.innerText = "👑 真・算数ゴッド"; b.style.background = "linear-gradient(#45aaf2, #2d98da)"; e.innerText = "驚異的な知能！もはや教えることは何もない！"; }
+    else if(score >= 80) { b.innerText = "💎 賢者の騎士"; b.style.background = "#a55eea"; e.innerText = "ハイレベルな問題をここまで解くとは！"; }
+    else if(score >= 60) { b.innerText = "⚔️ 熟練の戦士"; b.style.background = "#20bf6b"; e.innerText = "あと一歩！複雑な計算に慣れてきたね！"; }
+    else if(score >= 30) { b.innerText = "🛡️ 鍛錬中の兵士"; b.style.background = "#f7b731"; e.innerText = "この難問なら十分な健闘！リベンジで知識を定着させよう！"; }
+    else { b.innerText = "🐣 冒険の卵"; b.style.background = "#eb3b5a"; e.innerText = "難しかったかな？ノートに書いて計算してみよう！"; }
+    
+    if(score < 100) document.getElementById("retry-info").style.display = "block";
+    const list = document.getElementById("res-list"); list.innerHTML = "";
+    quizData.forEach((q, i) => {
+        list.innerHTML += `<tr><td>${i+1}</td><td>${userLogs[i].s}</td><td style="font-size:0.8em">${q.a}</td></tr>`;
+    });
+}
+
+function startRetry() {
+    if(score === 100) { location.reload(); return; }
+    switchScreen('retry-screen');
+    showRetry();
+}
+
+function showRetry() {
+    document.getElementById("retry-prog-text").innerText = `★ 試練 ${retryStep + 1} / 3 問目 ★`;
+    let idx = (retryStep < wrongIdx.length) ? wrongIdx[retryStep] : Math.floor(Math.random() * 10);
+    const data = quizData[idx];
+    document.getElementById("retry-q-area").innerHTML = data.rq;
+    document.getElementById("retry-feedback").innerText = "";
+    const area = document.getElementById("retry-opt-area"); area.innerHTML = "";
+    [...data.rd, data.ra].sort(() => Math.random() - 0.5).forEach(o => {
+        const b = document.createElement("button");
+        b.className = "opt-btn"; b.innerHTML = o;
+        b.onclick = () => {
+            if(o === data.ra) {
+                document.getElementById("retry-feedback").innerHTML = "✨ 試練突破！お見事！";
+                setTimeout(() => { retryStep++; if(retryStep < 3) showRetry(); else { alert("試練完了！あなたは真の賢者です！"); location.reload(); } }, 800);
+            } else { document.getElementById("retry-feedback").innerText = "❌ まだ修行が足りぬ！再計算だ！"; }
+        };
+        area.appendChild(b);
+    });
+}
+</script>
+</body>
+</html>
